@@ -10,7 +10,19 @@ app.use(cors());
 app.use(express.json());
 
 function verifyJWT(req, res, next) {
-
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'unauthorized access' });
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded) => {
+        if (error) {
+            return res.status(403).send({ message: 'Frobiden access' });
+        }
+        console.log('decoded', decoded);
+        req.decoded = decoded;
+    })
+    next();
 }
 
 
@@ -44,9 +56,10 @@ async function run() {
             res.send(item);
         });
 
-        app.post('/item', async (req, res) => {
-            const authHeader = req.headers.authorization;
-            console.log(authHeader);
+        app.post('/item', verifyJWT, async (req, res) => {
+            const decodedEmail = req.decoded.email;
+            const email = req.query.email;
+            const query = { email: email }
             const newItem = req.body;
             const result = await itemCollection.insertOne(newItem);
             res.send(result);
